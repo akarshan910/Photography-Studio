@@ -52,17 +52,14 @@ export const portfolioService = {
       const gs = groupsByCollection.get(c.id) ?? [];
       const mappedGroups: Group[] = gs.map((g: any) => {
         const imgs = (imagesByGroup.get(g.id) ?? []).slice().sort((a, b) => a.display_order - b.display_order);
-        const preview = imgs
-          .filter((im) => im.is_preview)
-          .slice()
-          .sort((a, b) => (a.preview_order ?? 0) - (b.preview_order ?? 0))
-          .slice(0, 3)
-          .map((im) => ({
-            id: im.id,
-            url: im.url,
-            caption: im.caption ?? undefined,
-            orientation: im.orientation ?? undefined,
-          }));
+        // UI expects up to 3 preview images, but galleries can have any length.
+        // Keep it stable by always using the first 3 images as previews.
+        const preview = imgs.slice(0, 3).map((im) => ({
+          id: im.id,
+          url: im.url,
+          caption: im.caption ?? undefined,
+          orientation: im.orientation ?? undefined,
+        }));
 
         return {
           id: g.id,
@@ -116,11 +113,9 @@ export const portfolioService = {
           caption: im.caption ?? '',
           orientation: im.orientation ?? null,
           order: imIdx,
-          isPreview: g.previewImages.some((p) => p.id === im.id),
-          previewOrder: (() => {
-            const idx = g.previewImages.findIndex((p) => p.id === im.id);
-            return idx === -1 ? 0 : idx + 1;
-          })(),
+          // First 3 images become previews (public UI collage).
+          isPreview: imIdx < 3,
+          previewOrder: imIdx < 3 ? imIdx + 1 : 0,
         })),
       })),
     };

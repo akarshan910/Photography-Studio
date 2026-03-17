@@ -14,6 +14,7 @@ export const CollectionGroups: React.FC<CollectionGroupsProps> = ({ collection, 
 
   const handleQuickView = (e: React.MouseEvent, images: any[], index: number) => {
     e.stopPropagation();
+    if (!images || images.length === 0) return;
     setQuickViewImage({ isOpen: true, images, index });
   };
 
@@ -51,7 +52,7 @@ export const CollectionGroups: React.FC<CollectionGroupsProps> = ({ collection, 
                       {/* Main Large Image */}
                       <div className="col-span-8 h-full overflow-hidden bg-stone-200 dark:bg-stone-900 relative group shadow-xl">
                         <img 
-                          src={group.previewImages[0]?.url} 
+                          src={group.previewImages[0]?.url || group.images[0]?.url} 
                           alt="Preview Main" 
                           className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale-[10%] group-hover:grayscale-0"
                           onClick={(e) => handleQuickView(e, group.previewImages, 0)}
@@ -63,7 +64,7 @@ export const CollectionGroups: React.FC<CollectionGroupsProps> = ({ collection, 
                       <div className="col-span-4 flex flex-col gap-2 md:gap-4 h-full">
                         <div className="h-1/2 overflow-hidden bg-stone-200 dark:bg-stone-900 relative group shadow-lg">
                            <img 
-                             src={group.previewImages[1]?.url} 
+                             src={group.previewImages[1]?.url || group.images[1]?.url || group.images[0]?.url} 
                              alt="Preview Top" 
                              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale-[10%] group-hover:grayscale-0"
                              onClick={(e) => handleQuickView(e, group.previewImages, 1)}
@@ -72,7 +73,7 @@ export const CollectionGroups: React.FC<CollectionGroupsProps> = ({ collection, 
                         </div>
                         <div className="h-1/2 overflow-hidden bg-stone-200 dark:bg-stone-900 relative group shadow-lg">
                            <img 
-                             src={group.previewImages[2]?.url} 
+                             src={group.previewImages[2]?.url || group.images[2]?.url || group.images[0]?.url} 
                              alt="Preview Bottom" 
                              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale-[10%] group-hover:grayscale-0"
                              onClick={(e) => handleQuickView(e, group.previewImages, 2)}

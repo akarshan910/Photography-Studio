@@ -182,7 +182,11 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   const handleRemoveImage = (gIdx: number, imgIdx: number) => {
     if (!editingCollection) return;
     const next = { ...editingCollection };
+    const removed = next.groups[gIdx].images[imgIdx];
     next.groups[gIdx].images.splice(imgIdx, 1);
+    if (removed) {
+      next.groups[gIdx].previewImages = next.groups[gIdx].previewImages.filter((p) => p.id !== removed.id);
+    }
     setEditingCollection(next);
   };
 
@@ -450,7 +454,15 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
                            >
                               <Settings size={18} />
                            </button>
-                           <button className="p-2 hover:bg-red-950/30 rounded-lg text-stone-700 hover:text-red-400 transition-all">
+                           <button
+                             onClick={async () => {
+                               const ok = confirm(`Delete collection "${col.title}"? This will remove its groups/images too.`);
+                               if (!ok) return;
+                               await portfolioService.deleteCollection(col.id);
+                               refreshData();
+                             }}
+                             className="p-2 hover:bg-red-950/30 rounded-lg text-stone-700 hover:text-red-400 transition-all"
+                           >
                               <Trash2 size={18} />
                            </button>
                         </div>
@@ -567,8 +579,8 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
                                 <div className="text-white font-medium">{enq.name}</div>
                                 <div className="text-xs text-stone-600">{enq.email}</div>
                              </td>
-                             <td className="p-6 text-sm">{enq.type}</td>
-                             <td className="p-6 text-xs text-stone-600">{new Date(enq.createdAt).toLocaleDateString()}</td>
+                             <td className="p-6 text-sm">{enq.event_type}</td>
+                             <td className="p-6 text-xs text-stone-600">{new Date(enq.created_at).toLocaleDateString()}</td>
                              <td className="p-6 text-xs text-stone-500 italic max-w-xs truncate group-hover:text-stone-300">"{enq.message}"</td>
                           </tr>
                        ))}
