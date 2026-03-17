@@ -1,4 +1,4 @@
-import { db } from './storage';
+import { supabase } from './supabaseClient';
 
 export interface BookingEnquiry {
   name: string;
@@ -12,15 +12,21 @@ export interface BookingEnquiry {
 
 export const enquiryService = {
   submitEnquiry: async (data: BookingEnquiry): Promise<{ success: boolean; message: string }> => {
-    await db.simulateNetwork(1200); // Realistic processing time
-    
-    // Server-side style validation
     if (!data.name || !data.email || !data.message) {
       throw new Error("Missing required fields");
     }
 
-    db.save('enquiries', data);
-    console.log('Backend: Enquiry processed and saved to persistent storage.');
+    const { error } = await supabase.from('enquiries').insert({
+      name: data.name,
+      email: data.email,
+      event_date: data.date ? data.date : null,
+      event_type: data.type,
+      guests: data.guests,
+      style: data.style,
+      message: data.message,
+    });
+
+    if (error) throw error;
     
     return {
       success: true,
@@ -28,7 +34,12 @@ export const enquiryService = {
     };
   },
 
-  getEnquiries: (): BookingEnquiry[] => {
-    return db.getAll<BookingEnquiry>('enquiries');
+  getEnquiries: async (): Promise<any[]> => {
+    const { data, error } = await supabase
+      .from('enquiries')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data ?? [];
   }
 };

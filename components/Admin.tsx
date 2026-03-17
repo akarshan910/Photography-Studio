@@ -9,6 +9,7 @@ import { enquiryService } from '../services/enquiryService';
 import { testimonialService, ExtendedTestimonial } from '../services/testimonialService';
 import { pricingService } from '../services/pricingService';
 import { PricingTier, ImageItem, Group } from '../types';
+import { supabase } from '../services/supabaseClient';
 
 export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   const [activeTab, setActiveTab] = useState<'stats' | 'enquiries' | 'portfolio' | 'testimonials' | 'pricing'>('stats');
@@ -17,6 +18,13 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   const [testimonials, setTestimonials] = useState<ExtendedTestimonial[]>([]);
   const [pricing, setPricing] = useState<PricingTier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Auth / Admin gating (required due to RLS)
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // Selection for editing
   const [editingCollection, setEditingCollection] = useState<ExtendedCollection | null>(null);
@@ -28,7 +36,31 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   const [resolveProgress, setResolveProgress] = useState(0);
 
   useEffect(() => {
-    refreshData();
+    const boot = async () => {
+      const { data } = await supabase.auth.getSession();
+      setIsAuthed(!!data.session);
+      if (data.session) {
+        const { data: admin, error } = await supabase.rpc('is_admin');
+        setIsAdmin(!error && !!admin);
+      } else {
+        setIsAdmin(false);
+      }
+      setIsLoading(false);
+    };
+
+    boot();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setIsAuthed(!!session);
+      if (session) {
+        const { data: admin, error } = await supabase.rpc('is_admin');
+        setIsAdmin(!error && !!admin);
+      } else {
+        setIsAdmin(false);
+      }
+    });
+
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   const refreshData = async () => {
@@ -45,6 +77,12 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
     setPricing(p);
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    if (isAuthed && isAdmin) {
+      refreshData();
+    }
+  }, [isAuthed, isAdmin]);
 
   const toggleFeatured = async (col: ExtendedCollection) => {
     const updated = { ...col, isFeatured: !col.isFeatured };
@@ -173,6 +211,102 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
     );
   }
 
+  if (!isAuthed) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-200 flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-stone-900 border border-stone-800 rounded-2xl p-8">
+          <div className="flex items-center gap-3 mb-8">
+            <Camera className="text-white" />
+            <div>
+              <div className="font-display font-bold tracking-widest text-white">LUMINA STUDIO</div>
+              <div className="text-[10px] uppercase tracking-widest text-stone-500">Admin Sign In</div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <input
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-white/20"
+              type="email"
+            />
+            <input
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-white/20"
+              type="password"
+            />
+
+            {authError && <div className="text-[10px] uppercase tracking-widest text-red-400 font-bold">{authError}</div>}
+
+            <button
+              onClick={async () => {
+                setAuthError(null);
+                const { error } = await supabase.auth.signInWithPassword({
+                  email: authEmail.trim(),
+                  password: authPassword,
+                });
+                if (error) setAuthError(error.message);
+              }}
+              className="w-full bg-white text-stone-950 py-3 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-stone-200 transition-all"
+            >
+              Sign In
+            </button>
+
+            <button
+              onClick={onExit}
+              className="w-full bg-stone-950 border border-stone-800 text-stone-200 py-3 rounded-xl uppercase tracking-widest text-xs font-bold hover:bg-stone-800 transition-all"
+            >
+              Back to site
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-200 flex items-center justify-center p-6">
+        <div className="w-full max-w-xl bg-stone-900 border border-stone-800 rounded-2xl p-10">
+          <div className="flex items-center justify-between gap-6 mb-6">
+            <div className="flex items-center gap-3">
+              <Camera className="text-white" />
+              <div>
+                <div className="font-display font-bold tracking-widest text-white">LUMINA STUDIO</div>
+                <div className="text-[10px] uppercase tracking-widest text-stone-500">Access Restricted</div>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+              }}
+              className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-white transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+
+          <p className="text-stone-400 text-sm leading-relaxed">
+            You’re signed in, but this user is not marked as an admin in Supabase. Add the user’s `auth.users.id` to
+            the `admin_users` table to enable Studio Control.
+          </p>
+
+          <div className="mt-8 flex gap-3">
+            <button
+              onClick={onExit}
+              className="px-6 py-3 bg-white text-stone-950 rounded-xl uppercase tracking-widest text-xs font-bold hover:bg-stone-200 transition-all"
+            >
+              Back to site
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-stone-950 text-stone-300 font-sans flex overflow-hidden">
       {/* Sidebar */}
@@ -204,6 +338,15 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
         <div className="p-4 border-t border-stone-800">
           <button onClick={onExit} className="w-full flex items-center gap-3 px-4 py-3 text-stone-500 hover:text-white transition-colors">
             <ArrowLeft size={18} /> View Site
+          </button>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              onExit();
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-stone-700 hover:text-white transition-colors"
+          >
+            <X size={18} /> Sign Out
           </button>
         </div>
       </aside>
@@ -246,7 +389,21 @@ export const Admin: React.FC<{ onExit: () => void }> = ({ onExit }) => {
                   <h1 className="text-3xl font-serif text-white mb-2">Portfolio Curation</h1>
                   <p className="text-stone-500 uppercase tracking-widest text-xs">Manage Visibility & Order</p>
                </div>
-               <button className="bg-white text-stone-950 px-6 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-stone-200 transition-all">
+               <button
+                 onClick={async () => {
+                   const created = await portfolioService.createCollection({
+                     title: 'New Collection',
+                     category: 'Uncategorized',
+                     imageUrl: 'https://picsum.photos/800/1000',
+                     description: 'Describe this collection...',
+                     isFeatured: false,
+                     order: collections.length,
+                   });
+                   setEditingCollection(created);
+                   refreshData();
+                 }}
+                 className="bg-white text-stone-950 px-6 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-stone-200 transition-all"
+               >
                  <Plus size={16} /> New Collection
                </button>
              </header>
