@@ -6,7 +6,7 @@
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1snGwQ2P-JFUs9vGvWhuz5imghf848adL
+View your app in AI Studio: https://ai.studio/apps/9d955a1a-a33f-485e-a29b-ada0d40879f8
 
 ## Run Locally
 
@@ -15,9 +15,6 @@ View your app in AI Studio: https://ai.studio/apps/drive/1snGwQ2P-JFUs9vGvWhuz5i
 
 1. Install dependencies:
    `npm install`
-2. Set env vars (copy `.env.example` to `.env.local`):
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - (optional) `GEMINI_API_KEY` / `VITE_GEMINI_API_KEY` for the AI draft helper
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
